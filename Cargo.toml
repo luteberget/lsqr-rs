@@ -1,0 +1,7 @@
+[package]
+name = "lsqr"
+version = "0.1.0"
+authors = ["Bjørnar Luteberget <bjlut@railcomplete.no>"]
+edition = "2018"
+
+[dependencies]
