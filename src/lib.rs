@@ -14,31 +14,46 @@ pub enum ResultMsg {
 }
 
 pub struct Params {
-    damp :f64,
-    atol :f64,
-    condlim :f64,
-    btol :f64,
-    iterlim :usize,
+    pub damp :f64,
+    pub rel_mat_err :f64,
+    pub rel_rhs_err :f64,
+    pub condlim :f64,
+    pub iterlim :usize,
 }
 
-pub enum Mode {
-    One, 
-    Two,
+pub enum Product<'a> {
+    /// Compute y = y + A * x
+    YAddAx {
+        y :&'a mut [f64],
+        x :&'a [f64],
+    },
+
+    /// Compute x = x + A.transposed * y
+    XAddATy {
+        x :&'a mut [f64],
+        y :&'a [f64],
+    }
 }
 
 pub fn lsqr(mut log :impl FnMut(&str),
-            rows :usize, cols :usize, params :Params,
-            mut aprod :impl FnMut(Mode, &mut [f64], &mut [f64]),
+            rows :usize, 
+            cols :usize, 
+            params :Params,
+            mut aprod :impl FnMut(Product),
             rhs :&mut [f64]) -> Vec<f64> {
 
     log(         "  Least Squares Solution of A*x = B\n");
     log(&format!("    The matrix A has {} rows and {} columns\n", rows, cols));
     log(&format!("    The damping parameter is DAMP = {}\n", params.damp));
-    log(&format!("    ATOL = {}\t\tCONDLIM = {}\n", params.atol, params.condlim));
-    log(&format!("    BTOL = {}\t\tITERLIM = {}\n", params.atol, params.iterlim));
+    log(&format!("    ATOL = {}\t\tCONDLIM = {}\n", params.rel_mat_err, params.condlim));
+    log(&format!("    BTOL = {}\t\tITERLIM = {}\n", params.rel_mat_err, params.iterlim));
 
-    let rel_mat_err = params.atol;
-    let rel_rhs_err = params.btol;
+
+
+
+
+    let rel_mat_err = params.rel_mat_err;
+    let rel_rhs_err = params.rel_rhs_err;
 
     let mut term_iter = 0;
     let mut num_iters = 0;
@@ -73,7 +88,7 @@ pub fn lsqr(mut log :impl FnMut(&str),
 
     // Compute b - A * x0 and store in vector u which initially held vector b.
     scale(-1.0, rhs);
-    aprod(Mode::One, &mut sol_vec, rhs);
+    aprod(Product::YAddAx { y: rhs, x: &sol_vec });
     scale(-1.0, rhs);
 
     // Compute Euclidean length of u and store as beta.
@@ -83,7 +98,8 @@ pub fn lsqr(mut log :impl FnMut(&str),
         // scale u by inverse of beta
         scale(1.0 / beta, rhs);
         // copmute matrix-vector product A^T * u and store it in vector v.
-        aprod(Mode::Two, &mut bidiag_work, rhs);
+        //aprod(Mode::Two, &mut bidiag_work, rhs);
+        aprod(Product::XAddATy { x: &mut bidiag_work, y: rhs });
         // Compute Euclidean length of v and store as alpha
         alpha = norm2(&mut bidiag_work);
     }
@@ -131,7 +147,8 @@ pub fn lsqr(mut log :impl FnMut(&str),
         // Scale vector u by the negative of alpha
         scale(-alpha, rhs);
         // Compute A*v - ALPÅHA*u and store in vector u
-        aprod(Mode::One, &mut bidiag_work, rhs);
+        //aprod(Mode::One, &mut bidiag_work, rhs);
+        aprod(Product::YAddAx { y: rhs, x: &bidiag_work });
         // Compute Euclidean length of u and store as BETA
         beta = norm2(rhs);
 
@@ -142,7 +159,8 @@ pub fn lsqr(mut log :impl FnMut(&str),
             scale(1.0 / beta, rhs);
             scale(-beta, &mut bidiag_work);
             // Compute A^T * u - BETA * v and store in vector v
-            aprod(Mode::Two, &mut bidiag_work, rhs);
+            //aprod(Mode::Two, &mut bidiag_work, rhs);
+            aprod(Product::XAddATy { x: &mut bidiag_work, y: rhs });
             alpha = norm2(&bidiag_work);
             if alpha > 0.0 {
                 scale(1.0 / alpha, &mut bidiag_work);
@@ -220,7 +238,6 @@ pub fn lsqr(mut log :impl FnMut(&str),
             frob_mat_norm * sol_norm / bnorm;
 
 
-
         // TERMINATE
         //
 
@@ -256,9 +273,9 @@ mod tests {
 
         let params = Params {
             damp :0.0,
-            atol :1e-6,
+            rel_mat_err :1e-6,
             condlim :0.0,
-            btol :1e-6,
+            rel_rhs_err :1e-6,
             iterlim :100,
         };
 
@@ -266,14 +283,14 @@ mod tests {
         let matrix = vec![3.,4.,0.,-6.,-8.,1.];
         let rows = 3; let cols = 2;
 
-        let mut aprod = |mode :Mode,x :&mut [f64],y :&mut [f64]| {
+        let mut aprod = |mode :Product| {
             // x.len() == cols
             // y.len() == rows
             // println!("BEFORE");
             // println!("X {:?}", x);
             //println!("Y {:?}", y);
             match mode {
-                Mode::One => {
+                Product::YAddAx { x, y } =>  {
                     // y += A*x   [m*1] = [m*n]*[n*1]
                     for i in 0..rows {
                         for j in 0..cols {
@@ -281,7 +298,7 @@ mod tests {
                         }
                     }
                 },
-                Mode::Two => {
+                Product::XAddATy { x, y } => {
                     // x += A^T*y  [n*1] = [n*m][m*1]
                     for i in 0..cols {
                         for j in 0..rows {
