@@ -2,6 +2,7 @@ fn norm2(x :&[f64]) -> f64 { x.iter().map(|e| e*e).sum::<f64>().sqrt() }
 fn scale(s :f64, x :&mut [f64]) { for e in x.iter_mut() { *e *= s; } }
 fn sqr(x :f64) -> f64 { x*x }
 
+#[derive(Debug,Copy,Clone)]
 pub enum ResultMsg {
     OkInputIsExact,
     OkResidualAtol,
@@ -13,12 +14,24 @@ pub enum ResultMsg {
     ErrIterLim,
 }
 
+#[derive(Debug,Copy,Clone)]
 pub struct Params {
     pub damp :f64,
     pub rel_mat_err :f64,
     pub rel_rhs_err :f64,
     pub condlim :f64,
     pub iterlim :usize,
+}
+
+#[derive(Debug,Copy,Clone)]
+pub struct Statistics {
+    pub term_flag :ResultMsg,
+    pub num_iters: usize,
+    pub frob_mat_norm :f64,
+    pub mat_cond_num :f64,
+    pub resid_norm :f64,
+    pub mat_resid_norm :f64,
+    pub sol_norm :f64,
 }
 
 pub enum Product<'a> {
@@ -40,7 +53,7 @@ pub fn lsqr(mut log :impl FnMut(&str),
             cols :usize, 
             params :Params,
             mut aprod :impl FnMut(Product),
-            rhs :&mut [f64]) -> Vec<f64> {
+            rhs :&mut [f64]) -> (Vec<f64>, Statistics) {
 
     log(         "  Least Squares Solution of A*x = B\n");
     log(&format!("    The matrix A has {} rows and {} columns\n", rows, cols));
@@ -120,7 +133,15 @@ pub fn lsqr(mut log :impl FnMut(&str),
     // solution. Exit and report.
     if mat_resid_norm == 0.0 {
         log("early exit resid norm");
-        return sol_vec;
+        return (sol_vec, Statistics {
+            term_flag: ResultMsg::OkInputIsExact,
+            num_iters: num_iters,
+            frob_mat_norm: frob_mat_norm,
+            mat_cond_num: mat_cond_num,
+            resid_norm :resid_norm,
+            mat_resid_norm: mat_resid_norm,
+            sol_norm: sol_norm,
+        });
     }
 
     let mut rhobar = alpha;
@@ -225,6 +246,7 @@ pub fn lsqr(mut log :impl FnMut(&str),
         // Use these norms to estimate the values of the three stopping criteria
 
         let stop_crit_1 = resid_norm / bnorm;
+        //println!("stop crit 1 = resid norm {}  / bnorm {}  = {} ", resid_norm, bnorm, stop_crit_1);
 
         let mut stop_crit_2 = 0.0;
         if resid_norm > 0.0 {
@@ -237,6 +259,8 @@ pub fn lsqr(mut log :impl FnMut(&str),
         let resid_tol_mach = std::f64::EPSILON + std::f64::EPSILON*
             frob_mat_norm * sol_norm / bnorm;
 
+        //println!("resid tol = btol={}  +  atol={} * frob_mat_norm={} * sol_norm={} / bnorm = {}    = {}",
+                 //rel_rhs_err, rel_mat_err, frob_mat_norm, sol_norm, bnorm, resid_tol);
 
         // TERMINATE
         //
@@ -257,7 +281,17 @@ pub fn lsqr(mut log :impl FnMut(&str),
 
     // TODO Standard error estimates output
 
-    sol_vec
+    let statistics = Statistics {
+        term_flag: term_flag,
+        num_iters: num_iters,
+        frob_mat_norm :frob_mat_norm,
+        mat_cond_num :mat_cond_num,
+        resid_norm :resid_norm,
+        mat_resid_norm :mat_resid_norm,
+        sol_norm :sol_norm,
+    };
+
+    (sol_vec, statistics)
 }
 
 
@@ -312,11 +346,12 @@ mod tests {
             // println!("Y {:?}", y);
         };
 
-        let sol = lsqr(|msg| print!("{}", msg), rows,cols,params,aprod,&mut rhs);
+        let (sol,statistics) = lsqr(|msg| print!("{}", msg), rows,cols,params,aprod,&mut rhs);
 
 
         for (i,x) in sol.iter().enumerate() {
             println!("x[{}] = {:.4}", i, x);
         }
+        println!("Statistics {:#?}", statistics);
     }
 }
