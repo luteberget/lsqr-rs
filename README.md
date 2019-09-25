@@ -2,6 +2,13 @@
 
 This is a port from C code from [web.stanford.edu/group/SOL/software/lsqr](https://web.stanford.edu/group/SOL/software/lsqr/). It is a conjugate-gradient method for solving sparse linear equations and sparse least-squares problems. It solves `Ax = b`, or minimizes `|Ax-b|^2`, or minimizes the damped form `|Ax-b|^2 + l^2*|x|^2`. See the original web page for more details.
 
+## TODO
+
+ * [ ] Take RHS array by move, as it is has unspecified contents afterwards.
+ * [ ] Take an initial value as parameter.
+
+## Usage
+
 The Rust API is single function `lsqr` which takes the size of the matrix, 
 an initial suggestion for the solution vector, and a function that
 the solver can call to update `y = y + A * x` or `x = x + A^T * y`, 
@@ -48,3 +55,4 @@ let aprod = |mode :Product| {
 let (sol,statistics) = lsqr(|msg| print!("{}", msg), 
                             n_rows, n_cols, params, aprod, &mut rhs);
 ```
+
