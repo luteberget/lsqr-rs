@@ -1,39 +1,57 @@
-fn norm2(x :&[f64]) -> f64 { x.iter().map(|e| e*e).sum::<f64>().sqrt() }
-fn scale(s :f64, x :&mut [f64]) { for e in x.iter_mut() { *e *= s; } }
-fn sqr(x :f64) -> f64 { x*x }
-
+/// Resulting state after executing `lsqr`.
 #[derive(Debug,Copy,Clone)]
 pub enum ResultMsg {
+    /// The initial guess was exactly correct.
     OkInputIsExact,
+    /// `Ax - b` is within given tolerances.
     OkResidualAtol,
+    /// The least-squares solution is within given tolerances.
     OkErrorAtol,
+    /// The estimate of the condition number of A_bar was exceeded.
     OkCondnumLimit,
+    /// `Ax - b` is within machine precision.
     OkResidualEps,
+    /// The estimate of the condition number of A_bar is too large.
     OkErrorEps,
     OkCondnumEps,
     ErrIterLim,
 }
 
+/// Numerical parameters for `lsqr`.
 #[derive(Debug,Copy,Clone)]
 pub struct Params {
+    /// Damping factor -- for miniminizing |Ax-b|^2 + damp^2 * x^2.
     pub damp :f64,
+    /// Estimated relative error in the data defining the matrix A.
     pub rel_mat_err :f64,
+    /// Estimated relative error in the right-hand side vector b.
     pub rel_rhs_err :f64,
+    /// Upper limit on the condition number of A_bar (see original source code).
     pub condlim :f64,
+    /// Limit on number of iterations
     pub iterlim :usize,
 }
 
+/// Numerical statistics from the execution of `lsqrt`.
 #[derive(Debug,Copy,Clone)]
 pub struct Statistics {
+    /// Termination message -- see `ResultMsg`.
     pub term_flag :ResultMsg,
+    /// Total number of iterations performed.
     pub num_iters: usize,
+    /// An estimate of the Froebnius norm of A_bar. (See the original source)
     pub frob_mat_norm :f64,
+    /// An estimate of the conditioning number of A_bar. (See the original source)
     pub mat_cond_num :f64,
+    /// An estimate of the final RHS residual. (See the original source)
     pub resid_norm :f64,
+    /// An estimate of the final matrix residual. (See the original source)
     pub mat_resid_norm :f64,
+    /// An estiamte of the norm of the final solution vector. (See the original source)
     pub sol_norm :f64,
 }
 
+/// Parameters passed to the user-supplied function parameter to `lsqr`.
 pub enum Product<'a> {
     /// Compute y = y + A * x
     YAddAx {
@@ -48,6 +66,9 @@ pub enum Product<'a> {
     }
 }
 
+/// A conjugate-gradient method for solving sparse linear equations and sparse least-squares problems. 
+/// It solves `Ax = b`, or minimizes `|Ax-b|^2`, or minimizes the damped form `|Ax-b|^2 + l^2*|x|^2`. 
+/// See the [original web page](https://web.stanford.edu/group/SOL/software/lsqr/) for more details.
 pub fn lsqr(mut log :impl FnMut(&str),
             rows :usize, 
             cols :usize, 
@@ -61,9 +82,8 @@ pub fn lsqr(mut log :impl FnMut(&str),
     log(&format!("    ATOL = {}\t\tCONDLIM = {}\n", params.rel_mat_err, params.condlim));
     log(&format!("    BTOL = {}\t\tITERLIM = {}\n", params.rel_mat_err, params.iterlim));
 
-
-
-
+    fn norm2(x :&[f64]) -> f64 { x.iter().map(|e| e*e).sum::<f64>().sqrt() }
+    fn scale(s :f64, x :&mut [f64]) { for e in x.iter_mut() { *e *= s; } }
 
     let rel_mat_err = params.rel_mat_err;
     let rel_rhs_err = params.rel_rhs_err;
@@ -300,10 +320,6 @@ mod tests {
     #[test]
     fn it_works() {
         use super::*;
-//pub fn lsqr(mut log :impl FnMut(&str),
-            //rows :usize, cols :usize, params :Params,
-            //mut aprod :impl FnMut(Mode, &mut [f64], &mut [f64]),
-            //rhs :&mut [f64]) {
 
         let params = Params {
             damp :0.0,
@@ -318,11 +334,6 @@ mod tests {
         let rows = 3; let cols = 2;
 
         let mut aprod = |mode :Product| {
-            // x.len() == cols
-            // y.len() == rows
-            // println!("BEFORE");
-            // println!("X {:?}", x);
-            //println!("Y {:?}", y);
             match mode {
                 Product::YAddAx { x, y } =>  {
                     // y += A*x   [m*1] = [m*n]*[n*1]
@@ -341,9 +352,6 @@ mod tests {
                     }
                 },
             };
-            //println!("AFTER");
-            // println!("X {:?}", x);
-            // println!("Y {:?}", y);
         };
 
         let (sol,statistics) = lsqr(|msg| print!("{}", msg), rows,cols,params,aprod,&mut rhs);
