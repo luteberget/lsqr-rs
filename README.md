@@ -22,30 +22,29 @@ let params = Params {
 
 let mut rhs = vec![-1.,7.,2.];
 let matrix = vec![3.,4.,0.,-6.,-8.,1.];
-let rows = 3; let cols = 2;
+let n_rows = 3; let n_cols = 2;
 
-let mut aprod = |mode :Product| {
+let aprod = |mode :Product| {
     match mode {
 	Product::YAddAx { x, y } =>  {
 	    // y += A*x   [m*1] = [m*n]*[n*1]
-	    for i in 0..rows {
-		for j in 0..cols {
-		    y[i] += matrix[rows*j + i] * x[j];
+	    for i in 0..n_rows {
+		for j in 0..n_cols {
+		    y[i] += matrix[n_rows*j + i] * x[j];
 		}
 	    }
 	},
 	Product::XAddATy { x, y } => {
 	    // x += A^T*y  [n*1] = [n*m][m*1]
-	    for i in 0..cols {
-		for j in 0..rows {
-		    x[i] += matrix[rows*i + j] * y[j];
+	    for i in 0..n_cols {
+		for j in 0..n_rows {
+		    x[i] += matrix[n_rows*i + j] * y[j];
 		}
 	    }
 	},
     };
 };
 
-let mut log = |msg| { print!({}", msg); };
-
-let (sol,statistics) = lsqr(log, n_rows, n_cols, params, aprod, &mut rhs);
+let (sol,statistics) = lsqr(|msg| print!("{}", msg), 
+                            n_rows, n_cols, params, aprod, &mut rhs);
 ```

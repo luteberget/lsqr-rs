@@ -88,7 +88,6 @@ pub fn lsqr(mut log :impl FnMut(&str),
     let rel_mat_err = params.rel_mat_err;
     let rel_rhs_err = params.rel_rhs_err;
 
-    let mut term_iter = 0;
     let mut num_iters = 0;
 
     let mut frob_mat_norm = 0.0;
@@ -103,12 +102,12 @@ pub fn lsqr(mut log :impl FnMut(&str),
     let mut zeta = 0.0;
     let mut res = 0.0;
 
-    let mut psi = 0.0;
+    let mut psi;
 
     let cond_tol = if params.condlim > 0.0 { 1.0 / params.condlim } else { std::f64::EPSILON };
     
     let mut alpha = 0.0;
-    let mut beta = 0.0;
+    let mut beta;
 
 
     // Set up the initial vectors u and v for bidiagonalization. These satify the relations
@@ -146,7 +145,7 @@ pub fn lsqr(mut log :impl FnMut(&str),
 
     let mut mat_resid_norm = alpha * beta;
     let mut resid_norm = beta;
-    let mut bnorm = beta;
+    let bnorm = beta;
 
 
     // If the norm || A^T r || is zero, then the inital guess is the exact
@@ -171,8 +170,6 @@ pub fn lsqr(mut log :impl FnMut(&str),
     // Print iteration header.
     log("first iteration");
 
-
-    let mut term_flag = 0;
 
     // The main iteration loop is continued as long as no stopping criteria are
     // satisfied and the number of total iterations is less than some upper bound.
@@ -317,9 +314,10 @@ pub fn lsqr(mut log :impl FnMut(&str),
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn it_works() {
-        use super::*;
 
         let params = Params {
             damp :0.0,
@@ -333,7 +331,7 @@ mod tests {
         let matrix = vec![3.,4.,0.,-6.,-8.,1.];
         let rows = 3; let cols = 2;
 
-        let mut aprod = |mode :Product| {
+        let aprod = |mode :Product| {
             match mode {
                 Product::YAddAx { x, y } =>  {
                     // y += A*x   [m*1] = [m*n]*[n*1]
@@ -361,5 +359,44 @@ mod tests {
             println!("x[{}] = {:.4}", i, x);
         }
         println!("Statistics {:#?}", statistics);
+    }
+
+    #[test]
+    fn test2() {
+let params = Params {
+    damp :0.0,         // Damping factor -- for miniminizing |Ax-b|^2 + damp^2 * x^2.
+    rel_mat_err :1e-6, // Estimated relative error in the data defining the matrix A.
+    rel_rhs_err :1e-6, // Estimated relative error in the right-hand side vector b.
+    condlim :0.0,      // Upper limit on the condition number of A_bar (see original source code).
+    iterlim :100,      // Limit on number of iterations
+};
+
+let mut rhs = vec![-1.,7.,2.];
+let matrix = vec![3.,4.,0.,-6.,-8.,1.];
+let n_rows = 3; let n_cols = 2;
+
+let aprod = |mode :Product| {
+    match mode {
+	Product::YAddAx { x, y } =>  {
+	    // y += A*x   [m*1] = [m*n]*[n*1]
+	    for i in 0..n_rows {
+		for j in 0..n_cols {
+		    y[i] += matrix[n_rows*j + i] * x[j];
+		}
+	    }
+	},
+	Product::XAddATy { x, y } => {
+	    // x += A^T*y  [n*1] = [n*m][m*1]
+	    for i in 0..n_cols {
+		for j in 0..n_rows {
+		    x[i] += matrix[n_rows*i + j] * y[j];
+		}
+	    }
+	},
+    };
+};
+
+let (_sol,_statistics) = lsqr(|msg| print!("{}", msg), 
+                            n_rows, n_cols, params, aprod, &mut rhs);
     }
 }
