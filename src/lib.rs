@@ -12,7 +12,7 @@
 //! be better off with a dense solver such as LAPACK (see [netlib LLS](https://www.netlib.org/lapack/lug/node27.html)).
 //! 
 //! ```rust
-//! let params = Params {
+//! let params = lsqr::Params {
 //!     damp :0.0,         // Damping factor -- for miniminizing |Ax-b|^2 + damp^2 * x^2.
 //!     rel_mat_err :1e-6, // Estimated relative error in the data defining the matrix A.
 //!     rel_rhs_err :1e-6, // Estimated relative error in the right-hand side vector b.
@@ -24,9 +24,9 @@
 //! let matrix = vec![3.,4.,0.,-6.,-8.,1.];
 //! let n_rows = 3; let n_cols = 2;
 //! 
-//! let aprod = |mode :Product| {
+//! let aprod = |mode :lsqr::Product| {
 //!     match mode {
-//! 	Product::YAddAx { x, y } =>  {
+//! 	lsqr::Product::YAddAx { x, y } =>  {
 //! 	    // y += A*x   [m*1] = [m*n]*[n*1]
 //! 	    for i in 0..n_rows {
 //! 		for j in 0..n_cols {
@@ -34,7 +34,7 @@
 //! 		}
 //! 	    }
 //! 	},
-//! 	Product::XAddATy { x, y } => {
+//! 	lsqr::Product::XAddATy { x, y } => {
 //! 	    // x += A^T*y  [n*1] = [n*m][m*1]
 //! 	    for i in 0..n_cols {
 //! 		for j in 0..n_rows {
@@ -45,8 +45,8 @@
 //!     };
 //! };
 //! 
-//! let (sol,statistics) = lsqr(|msg| print!("{}", msg), 
-//!                             n_rows, n_cols, params, aprod, &mut rhs);
+//! let (sol,statistics) = lsqr::lsqr(|msg| print!("{}", msg), 
+//!                                   n_rows, n_cols, params, aprod, &mut rhs);
 //! ```
 
 /// Resulting state after executing `lsqr`.
