@@ -83,7 +83,7 @@ pub struct Params {
     pub iterlim :usize,
 }
 
-/// Numerical statistics from the execution of `lsqrt`.
+/// Numerical statistics from the execution of `lsqr`.
 #[derive(Debug,Copy,Clone)]
 pub struct Statistics {
     /// Termination message -- see `ResultMsg`.
