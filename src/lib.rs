@@ -83,6 +83,18 @@ pub struct Params {
     pub iterlim :usize,
 }
 
+impl Default for Params {
+    fn default() -> Self {
+        Params {
+            damp: 0.0,
+            rel_mat_err: 0.0,
+            rel_rhs_err: 0.0,
+            condlim: 0.0,
+            iterlim: 300000,
+        }
+    }
+}
+
 /// Numerical statistics from the execution of `lsqr`.
 #[derive(Debug,Copy,Clone)]
 pub struct Statistics {
